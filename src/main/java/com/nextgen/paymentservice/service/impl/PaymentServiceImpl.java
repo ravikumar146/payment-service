@@ -1,6 +1,8 @@
 package com.nextgen.paymentservice.service.impl;
 
 import com.nextgen.paymentservice.dto.CreateOrderResponse;
+import com.nextgen.paymentservice.entity.PaymentDetails;
+import com.nextgen.paymentservice.repository.PaymentRepository;
 import com.nextgen.paymentservice.service.PaymentService;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
@@ -13,6 +15,9 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class PaymentServiceImpl implements PaymentService {
+
+    @Autowired
+    private PaymentRepository paymentRepository;
 
     @Autowired
     private RazorpayClient razorpayClient;
@@ -51,7 +56,15 @@ public class PaymentServiceImpl implements PaymentService {
         attributes.put("razorpay_order_id", orderId);
         attributes.put("razorpay_payment_id", paymentId);
         attributes.put("razorpay_signature", signature);
-        return Utils.verifyPaymentSignature(attributes, razorPaySecret);
+        boolean verificationStatus = Utils.verifyPaymentSignature(attributes, razorPaySecret);
+        PaymentDetails paymentDetails =
+                PaymentDetails.builder().razorpayOrderId(orderId).razorpayPaymentId(paymentId).build();
+        if (verificationStatus) {
+            PaymentDetails savedPayment = paymentRepository.save(paymentDetails);
+            if (savedPayment.getId() != null) {
+                return true;
+            }
+        }
+        return false;
     }
-
 }
